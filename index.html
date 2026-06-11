@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PICZEL Legenden ✦ — Die zersplitterte Welt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1b2e; font-family: 'Trebuchet MS', sans-serif; }
+    canvas { display: block; }
+
+    #start {
+      position: fixed; inset: 0; z-index: 50;
+      background: linear-gradient(180deg, #142a4a 0%, #1d3a5f 55%, #2c5a4a 100%);
+      display: flex; flex-direction: column; align-items: center;
+      overflow-y: auto; padding: 28px 16px 60px;
+    }
+    #start h1 {
+      color: #ffd24a; font-size: clamp(28px, 5vw, 52px); text-align: center;
+      text-shadow: 4px 4px 0 #241a10; letter-spacing: 1px;
+    }
+    #start h2 { color: #8ae8ff; font-size: clamp(15px, 2.4vw, 22px); margin-top: 6px; text-shadow: 2px 2px 0 #241a10; }
+    #intro {
+      max-width: 760px; background: #fdf3da; color: #241a10;
+      border: 4px solid #241a10; border-radius: 14px;
+      box-shadow: 6px 7px 0 rgba(20, 12, 4, 0.55);
+      padding: 18px 22px; margin: 22px 0 10px; font-size: 16px; line-height: 1.55;
+    }
+    #wahl { color: #fff; font-size: 22px; font-weight: bold; margin: 18px 0 8px; text-shadow: 2px 2px 0 #241a10; }
+    #klassen {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px; width: min(94vw, 860px);
+    }
+    .klasse {
+      background: #fdf3da; border: 4px solid #241a10; border-radius: 14px;
+      box-shadow: 5px 6px 0 rgba(20, 12, 4, 0.55);
+      padding: 14px; cursor: pointer; text-align: center;
+      font-family: inherit; transition: transform 0.08s;
+    }
+    .klasse:hover { transform: translateY(-3px); background: #fff7e2; }
+    .klasse .symbol { font-size: 38px; display: block; }
+    .klasse b { display: block; font-size: 21px; color: #241a10; margin-top: 4px; }
+    .klasse i { display: block; font-size: 14px; color: #8a5a10; font-weight: bold; font-style: normal; }
+    .klasse small { display: block; font-size: 13px; color: #5a4a35; margin-top: 6px; line-height: 1.35; }
+    .klasse.weiter { background: #ffd24a; font-size: 19px; grid-column: 1 / -1; padding: 20px; }
+    .klasse.neu { background: #e8e0c8; color: #5a4a35; font-size: 14px; grid-column: 1 / -1; }
+    #hinweis { color: #bfe8ff; font-size: 14px; margin-top: 22px; text-align: center; line-height: 1.6; max-width: 700px; }
+
+    #fadenkreuz {
+      position: fixed; left: 50%; top: 50%; width: 14px; height: 14px;
+      margin: -7px 0 0 -7px; z-index: 40; display: none; pointer-events: none;
+    }
+    #fadenkreuz::before, #fadenkreuz::after {
+      content: ''; position: absolute; background: #fff; box-shadow: 0 0 3px #000;
+    }
+    #fadenkreuz::before { left: 6px; top: 0; width: 2px; height: 14px; }
+    #fadenkreuz::after { left: 0; top: 6px; width: 14px; height: 2px; }
+  </style>
+</head>
+<body>
+  <div id="start">
+    <h1>✦ PICZEL LEGENDEN ✦</h1>
+    <h2>Die zersplitterte Welt — ein VR-Rollenspiel für Meta Quest 3</h2>
+    <div id="intro"></div>
+    <div id="wahl">Wähle deine Klasse:</div>
+    <div id="klassen"></div>
+    <div id="hinweis">
+      🥽 <b>Quest 3:</b> Diese Seite im Quest-Browser öffnen, Klasse wählen, dann unten „ENTER VR" drücken.<br>
+      Linker Stick = laufen · Rechter Stick = drehen · Trigger = angreifen &amp; reden · A/B/X/Y = Fähigkeiten · Linker Griff = Menü<br>
+      🖥 <b>Am Computer:</b> Klasse wählen, ins Bild klicken — WASD = laufen, Maus = umsehen, Klick = angreifen/reden, 1–4 = Fähigkeiten, E = reden, I = Menü, M = Karte, 5 = Heiltrank
+    </div>
+  </div>
+  <div id="fadenkreuz"></div>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
