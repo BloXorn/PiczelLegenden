@@ -114,6 +114,23 @@ function gelaendeNormal(x, z) {
   return _normal.normalize();
 }
 
+// Schnelle Prüfung für den Gras-Teppich: kein Halm auf Plätzen, Wegen, Boss-Ringen
+export function istFreiFuerGras(x, z) {
+  for (let i = 0; i < 6; i++) {
+    const m = zonenMitte(i);
+    const dx = x - m.x, dz = z - m.z;
+    if (dx * dx + dz * dz < 31 * 31) return false;
+  }
+  for (const p of pfade) {
+    if (distZuSegment(x, z, p.ax, p.az, p.bx, p.bz).d < 6.5) return false;
+  }
+  for (const o of ORTE) {
+    const dx = x - o.x, dz = z - o.z;
+    if (dx * dx + dz * dz < 15 * 15) return false;
+  }
+  return true;
+}
+
 export function kollidiere(pos, radius = 0.4) {
   pos.x = klemme(pos.x, -890, 890);
   pos.z = klemme(pos.z, -590, 590);
@@ -582,6 +599,43 @@ function toterBusch(rng) {
   }
   return verschmelze(t);
 }
+function farn(rng) {
+  const t = [];
+  for (let i = 0; i < 6; i++) {
+    const w = (i / 6) * Math.PI * 2 + rng() * 0.5;
+    t.push(teil(GEO.kegelGrob, [0x5fae4c, 0x2e6e2a],
+      Math.cos(w) * 0.5, 0.42, Math.sin(w) * 0.5,
+      Math.cos(w) * 1.05, -w, -Math.sin(w) * 1.05,
+      0.4, 1.3, 0.1));
+  }
+  return verschmelze(t);
+}
+function treibholz(rng) {
+  return verschmelze([
+    teil(GEO.zylinderGrob, [0xcdbb9e, 0x96866a], 0, 0.28, 0, 0, 0, Math.PI / 2, 0.4, 2.8, 0.4),
+    teil(GEO.zylinderGrob, [0xc2b094, 0x8a7a5e], 0.7, 0.4, 0.2, 0.7, 0, 1.2, 0.18, 1.2, 0.18),
+  ]);
+}
+function steinhaufen(hell, dunkel, rng) {
+  const t = [];
+  for (let i = 0; i < 5; i++) {
+    const w = rng() * Math.PI * 2, r = rng() * 0.45;
+    t.push(teil(GEO.kugelGrob, [hell, dunkel], Math.cos(w) * r, 0.16 + rng() * 0.1, Math.sin(w) * r, rng(), rng() * 3, rng(), 0.4 + rng() * 0.3, 0.3 + rng() * 0.2, 0.35 + rng() * 0.25));
+  }
+  return verschmelze(t);
+}
+function buschTrocken() {
+  return verschmelze([
+    teil(GEO.kugelGrob, [0xa8a058, 0x6e6838], 0, 0.5, 0, 0, 0, 0, 1.4, 0.9, 1.4),
+    teil(GEO.kugelGrob, [0xb8b068, 0x7e7848], 0.55, 0.4, 0.25, 0, 0, 0, 0.9, 0.7, 0.9),
+  ]);
+}
+function schneeBusch() {
+  return verschmelze([
+    teil(GEO.kugelGrob, [0x7a9a6e, 0x4a6a44], 0, 0.45, 0, 0, 0, 0, 1.3, 0.85, 1.3),
+    teil(GEO.kugelGrob, [0xffffff, 0xdfe9f2], 0, 0.78, 0, 0, 0, 0, 1.0, 0.4, 1.0),
+  ]);
+}
 
 function platzFrei(x, z) {
   for (let i = 0; i < 6; i++) {
@@ -639,46 +693,56 @@ function bauVegetation(szene) {
     const schatten = [];
     const b = zone.biom;
     if (b === 'wald') {
-      streueTyp(szene, zone, [laubbaum(rngB), laubbaum(rngB), laubbaum(rngB)], 400, 100, { schatten: 2.4, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, busch(), 150, 101, { schatten: 1.1 }, schatten);
-      streueTyp(szene, zone, [blume(0xe85a8a), blume(0xf0f0f8), blume(0x6a8af5)], 240, 102, { skala: [0.7, 1.1] }, schatten);
-      streueTyp(szene, zone, grasBueschel(0x76c258, 0x3f8a36), 850, 103, { skala: [0.8, 1.5] }, schatten);
-      streueTyp(szene, zone, pilz(0xc84a3a), 50, 104, { skala: [0.5, 0.9] }, schatten);
-      streueTyp(szene, zone, stein(0x9a9a8e, 0x6a6a60, rngB), 60, 105, { schatten: 1.2 }, schatten);
-      streueTyp(szene, zone, baumstumpf(), 35, 106, {}, schatten);
-      streueTyp(szene, zone, liegenderStamm(rngB), 25, 107, { schatten: 1.6 }, schatten);
+      streueTyp(szene, zone, [laubbaum(rngB), laubbaum(rngB), laubbaum(rngB), laubbaum(rngB)], 560, 100, { schatten: 2.4, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, busch(), 460, 101, { schatten: 1.1 }, schatten);
+      streueTyp(szene, zone, farn(rngB), 240, 108, { skala: [0.7, 1.3] }, schatten);
+      streueTyp(szene, zone, [blume(0xe85a8a), blume(0xf0f0f8), blume(0x6a8af5)], 420, 102, { skala: [0.7, 1.1] }, schatten);
+      streueTyp(szene, zone, grasBueschel(0x76c258, 0x3f8a36), 1500, 103, { skala: [0.8, 1.6] }, schatten);
+      streueTyp(szene, zone, pilz(0xc84a3a), 90, 104, { skala: [0.5, 0.9] }, schatten);
+      streueTyp(szene, zone, [stein(0x9a9a8e, 0x6a6a60, rngB), steinhaufen(0x9a9a8e, 0x6a6a60, rngB)], 160, 105, { schatten: 1.2 }, schatten);
+      streueTyp(szene, zone, baumstumpf(), 50, 106, {}, schatten);
+      streueTyp(szene, zone, liegenderStamm(rngB), 40, 107, { schatten: 1.6 }, schatten);
     } else if (b === 'kueste') {
-      streueTyp(szene, zone, [palme(rngB), palme(rngB)], 120, 110, { schatten: 2.0, minH: WELT.wasser + 0.8, skala: [0.8, 1.3] }, schatten);
-      streueTyp(szene, zone, grasBueschel(0x9ed070, 0x5f9a48), 450, 111, {}, schatten);
-      streueTyp(szene, zone, muschel(), 70, 112, { maxH: WELT.wasser + 1.6, skala: [0.6, 1.1] }, schatten);
-      streueTyp(szene, zone, seestern(), 45, 113, { maxH: WELT.wasser + 1.2, skala: [0.7, 1.2] }, schatten);
-      streueTyp(szene, zone, felsBrocken(0xb8b0a0, 0x7a7264, rngB), 60, 114, { schatten: 2.2, skala: [0.5, 1.1] }, schatten);
-      streueTyp(szene, zone, busch(), 80, 115, { schatten: 1.1, minH: WELT.wasser + 1.5 }, schatten);
+      streueTyp(szene, zone, [palme(rngB), palme(rngB), palme(rngB)], 170, 110, { schatten: 2.0, minH: WELT.wasser + 0.8, skala: [0.8, 1.3] }, schatten);
+      streueTyp(szene, zone, grasBueschel(0x9ed070, 0x5f9a48), 900, 111, {}, schatten);
+      streueTyp(szene, zone, muschel(), 110, 112, { maxH: WELT.wasser + 1.6, skala: [0.6, 1.1] }, schatten);
+      streueTyp(szene, zone, seestern(), 70, 113, { maxH: WELT.wasser + 1.2, skala: [0.7, 1.2] }, schatten);
+      streueTyp(szene, zone, treibholz(rngB), 80, 116, { maxH: WELT.wasser + 2.2, skala: [0.7, 1.3] }, schatten);
+      streueTyp(szene, zone, [felsBrocken(0xb8b0a0, 0x7a7264, rngB), steinhaufen(0xc2b8a4, 0x8a8070, rngB)], 150, 114, { schatten: 2.2, skala: [0.5, 1.1] }, schatten);
+      streueTyp(szene, zone, busch(), 240, 115, { schatten: 1.1, minH: WELT.wasser + 1.5 }, schatten);
+      streueTyp(szene, zone, [blume(0xf06a9a), blume(0xf0c84a)], 200, 117, { minH: WELT.wasser + 1.5 }, schatten);
     } else if (b === 'steppe') {
-      streueTyp(szene, zone, akazie(), 85, 120, { schatten: 2.8, skala: [0.9, 1.5] }, schatten);
-      streueTyp(szene, zone, dornbusch(rngB), 120, 121, { skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, grasBueschel(0xd8c46a, 0x9a8a44), 1000, 122, { skala: [0.8, 1.6] }, schatten);
-      streueTyp(szene, zone, blume(0xf0c84a), 160, 123, {}, schatten);
-      streueTyp(szene, zone, felsBrocken(0xc2b294, 0x8a7a5c, rngB), 70, 124, { schatten: 2.2, skala: [0.4, 1.0] }, schatten);
+      streueTyp(szene, zone, [akazie(), akazie()], 130, 120, { schatten: 2.8, skala: [0.9, 1.6] }, schatten);
+      streueTyp(szene, zone, dornbusch(rngB), 260, 121, { skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, buschTrocken(), 280, 125, { schatten: 1.0 }, schatten);
+      streueTyp(szene, zone, grasBueschel(0xd8c46a, 0x9a8a44), 1800, 122, { skala: [0.8, 1.7] }, schatten);
+      streueTyp(szene, zone, blume(0xf0c84a), 300, 123, {}, schatten);
+      streueTyp(szene, zone, [felsBrocken(0xc2b294, 0x8a7a5c, rngB), steinhaufen(0xc2b294, 0x8a7a5c, rngB)], 170, 124, { schatten: 2.2, skala: [0.4, 1.1] }, schatten);
+      streueTyp(szene, zone, treibholz(rngB), 60, 126, { skala: [0.6, 1.0] }, schatten);
     } else if (b === 'moor') {
-      streueTyp(szene, zone, [moorbaum(rngB), moorbaum(rngB)], 200, 130, { schatten: 1.8, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, schilf(rngB), 550, 131, { minH: WELT.wasser - 0.1, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, pilz(0xa84a8a, 1.4), 85, 132, { skala: [0.6, 1.2] }, schatten);
-      streueTyp(szene, zone, seerose(), 80, 133, { imWasser: true, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, stein(0x7a8272, 0x4e5648, rngB), 50, 134, { schatten: 1.2 }, schatten);
-      streueTyp(szene, zone, grasBueschel(0x6a9a4c, 0x3f6a34), 400, 135, {}, schatten);
+      streueTyp(szene, zone, [moorbaum(rngB), moorbaum(rngB), moorbaum(rngB)], 280, 130, { schatten: 1.8, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, schilf(rngB), 1100, 131, { minH: WELT.wasser - 0.1, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, farn(rngB), 280, 136, { skala: [0.7, 1.4] }, schatten);
+      streueTyp(szene, zone, pilz(0xa84a8a, 1.4), 140, 132, { skala: [0.6, 1.3] }, schatten);
+      streueTyp(szene, zone, seerose(), 130, 133, { imWasser: true, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, [stein(0x7a8272, 0x4e5648, rngB), steinhaufen(0x7a8272, 0x4e5648, rngB)], 120, 134, { schatten: 1.2 }, schatten);
+      streueTyp(szene, zone, grasBueschel(0x6a9a4c, 0x3f6a34), 800, 135, {}, schatten);
+      streueTyp(szene, zone, busch(), 220, 137, { schatten: 1.0 }, schatten);
     } else if (b === 'berge') {
-      streueTyp(szene, zone, [nadelbaum(false, rngB), nadelbaum(false, rngB)], 250, 140, { schatten: 2.0, maxH: 26, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, [felsBrocken(0x9a9a90, 0x62625a, rngB), felsBrocken(0x8a8a80, 0x55554d, rngB)], 130, 141, { schatten: 2.6, maxSteigung: 0.8, skala: [0.5, 1.4] }, schatten);
-      streueTyp(szene, zone, grasBueschel(0x8ab060, 0x55703a), 350, 142, { maxH: 24 }, schatten);
-      streueTyp(szene, zone, kristall(0xbae8ff, 0x4a9ad8, rngB), 34, 143, { skala: [0.7, 1.4] }, schatten);
-      streueTyp(szene, zone, blume(0xf8f8ff), 70, 144, { maxH: 24 }, schatten);
+      streueTyp(szene, zone, [nadelbaum(false, rngB), nadelbaum(false, rngB), nadelbaum(false, rngB)], 360, 140, { schatten: 2.0, maxH: 26, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, [felsBrocken(0x9a9a90, 0x62625a, rngB), felsBrocken(0x8a8a80, 0x55554d, rngB), steinhaufen(0x9a9a90, 0x62625a, rngB)], 280, 141, { schatten: 2.6, maxSteigung: 0.8, skala: [0.5, 1.5] }, schatten);
+      streueTyp(szene, zone, grasBueschel(0x8ab060, 0x55703a), 700, 142, { maxH: 24 }, schatten);
+      streueTyp(szene, zone, busch(), 260, 145, { schatten: 1.0, maxH: 24 }, schatten);
+      streueTyp(szene, zone, kristall(0xbae8ff, 0x4a9ad8, rngB), 50, 143, { skala: [0.7, 1.5] }, schatten);
+      streueTyp(szene, zone, blume(0xf8f8ff), 160, 144, { maxH: 24 }, schatten);
+      streueTyp(szene, zone, baumstumpf(), 50, 146, { maxH: 24 }, schatten);
     } else { // frost
-      streueTyp(szene, zone, [nadelbaum(true, rngB), nadelbaum(true, rngB)], 240, 150, { schatten: 2.0, maxH: 30, skala: [0.8, 1.4] }, schatten);
-      streueTyp(szene, zone, felsBrocken(0xd8e2ea, 0x9ab0c0, rngB), 90, 151, { schatten: 2.4, maxSteigung: 0.8, skala: [0.5, 1.2] }, schatten);
-      streueTyp(szene, zone, kristall(0xc0f0ff, 0x4ab8e8, rngB), 50, 152, { skala: [0.8, 1.8] }, schatten);
-      streueTyp(szene, zone, schneehaufen(), 90, 153, { skala: [0.8, 1.8] }, schatten);
-      streueTyp(szene, zone, toterBusch(rngB), 70, 154, {}, schatten);
+      streueTyp(szene, zone, [nadelbaum(true, rngB), nadelbaum(true, rngB), nadelbaum(true, rngB)], 330, 150, { schatten: 2.0, maxH: 30, skala: [0.8, 1.5] }, schatten);
+      streueTyp(szene, zone, [felsBrocken(0xd8e2ea, 0x9ab0c0, rngB), steinhaufen(0xd8e2ea, 0x9ab0c0, rngB)], 200, 151, { schatten: 2.4, maxSteigung: 0.8, skala: [0.5, 1.3] }, schatten);
+      streueTyp(szene, zone, kristall(0xc0f0ff, 0x4ab8e8, rngB), 70, 152, { skala: [0.8, 1.9] }, schatten);
+      streueTyp(szene, zone, schneehaufen(), 180, 153, { skala: [0.8, 2.0] }, schatten);
+      streueTyp(szene, zone, toterBusch(rngB), 150, 154, {}, schatten);
+      streueTyp(szene, zone, schneeBusch(), 180, 155, { schatten: 1.0 }, schatten);
     }
     bauSchattenScheiben(szene, schatten);
   }
@@ -840,8 +904,9 @@ function marktstand(x, y, z, w, farbe) {
 }
 function banner(x, y, z, farbe, w = 0) {
   return [
-    teil(GEO.zylinderGrob, [0x8a6a42, 0x55401f], x, y + 1.9, z, 0, 0, 0, 0.1, 3.8, 0.1),
-    teil(GEO.box, [farbe, farbe], x, y + 3.1, z, 0, w, 0, 0.1, 1.3, 0.85),
+    teil(GEO.zylinderGrob, [0x8a6a42, 0x55401f], x, y + 1.9, z, 0, 0, 0, 0.16, 3.8, 0.16),
+    teil(GEO.kugelGrob, [0xffd24a, 0xc8962a], x, y + 3.85, z, 0, 0, 0, 0.18),
+    teil(GEO.box, [farbe, farbe], x, y + 3.05, z, 0, w, 0, 0.12, 1.4, 0.9),
   ];
 }
 function zaun(x1, z1, x2, z2, y) {

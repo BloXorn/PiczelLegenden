@@ -11,6 +11,7 @@ import { updateQuests, questsFuerNpc, nimmAn, gebeAb, questStand } from './quest
 import { heuereGefaehrtenAn } from './wesen.js';
 import { speichere, lade, loesche, wendeQuestStandAn, updateSpeicher } from './speicher.js';
 import { initEffekte, updateEffekte } from './effekte.js';
+import { initGras, updateGras } from './gras.js';
 import { weckeAudio, piczelKlang } from './klang.js';
 import { blobSchatten } from './bau.js';
 
@@ -84,6 +85,10 @@ function starteSpiel(klasseId, gespeichert) {
   initEffekte();
   initUI();
   erschaffeBevoelkerung();
+
+  const startPos = gespeichert?.spieler?.pos ?? (() => { const m = zonenMitte(0); return { x: m.x + 4, z: m.z + 6 }; })();
+  S.rig.position.set(startPos.x, hoeheAn(startPos.x, startPos.z), startPos.z);
+  initGras();
 
   const sp = erschaffeSpieler(klasseId, gespeichert?.spieler ?? null);
   wendeQuestStandAn(gespeichert);
@@ -315,6 +320,7 @@ function schleife() {
   updateWesen(dt);
   updateWelt(dt);
   updateEffekte(dt);
+  updateGras();
   updateQuests(dt);
   updateUI(dt);
   updateSpeicher(dt);

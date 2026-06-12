@@ -1,8 +1,9 @@
-// Stimmungs-Partikel: Schnee, Pollen/Glühstaub, fallende Blätter, Kaminrauch, Feuerfunken
+// Stimmungs-Partikel & Lufttiere: Schnee, Pollen, Blätter, Rauch, Funken,
+// Schmetterlinge und kreisende Vögel
 import * as THREE from 'three';
 import { S } from './zustand.js';
-import { punktTextur } from './bau.js';
-import { rauchQuellen, feuerQuellen } from './welt.js';
+import { punktTextur, teil, verschmelze, toonVertex } from './bau.js';
+import { rauchQuellen, feuerQuellen, hoeheAn } from './welt.js';
 
 const systeme = [];
 
@@ -21,6 +22,9 @@ function punkteSystem(anzahl, farbe, groesse, opacity = 0.9) {
 }
 
 let schnee = null, staub = null, blaetter = null, rauch = null, funken = null;
+let schmetterlinge = null, voegel = null;
+const falterDaten = [], vogelDaten = [];
+const FALTER_FARBEN = [0xf0c84a, 0xf06a9a, 0x8ab8ff, 0xffffff, 0xff8a5a];
 
 export function initEffekte() {
   // Schnee (Frostgipfel): fällt in einer 60-m-Blase um den Spieler
@@ -42,6 +46,86 @@ export function initEffekte() {
   // Feuerfunken
   funken = punkteSystem(90, 0xffb84a, 0.22, 0.95);
   for (let i = 0; i < funken.anzahl; i++) neuerFunke(i, Math.random() * 1.4);
+
+  // Schmetterlinge (zwei kleine Flügel-Dreiecke)
+  const fluegelGeo = verschmelze([
+    teil(new THREE.PlaneGeometry(0.2, 0.15), 0xffffff, -0.1, 0, 0, 0, 0.7, 0),
+    teil(new THREE.PlaneGeometry(0.2, 0.15), 0xffffff, 0.1, 0, 0, 0, -0.7, 0),
+  ]);
+  schmetterlinge = new THREE.InstancedMesh(fluegelGeo, new THREE.MeshToonMaterial({ vertexColors: true, side: THREE.DoubleSide }), 30);
+  schmetterlinge.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(30 * 3), 3);
+  schmetterlinge.frustumCulled = false;
+  S.szene.add(schmetterlinge);
+  const farbe = new THREE.Color();
+  for (let i = 0; i < 30; i++) {
+    falterDaten.push({
+      winkel: Math.random() * 6.28, radius: 4 + Math.random() * 22,
+      tempo: 0.3 + Math.random() * 0.5, phase: Math.random() * 6.28,
+      hoehe: 0.8 + Math.random() * 1.6,
+    });
+    farbe.setHex(FALTER_FARBEN[i % FALTER_FARBEN.length]);
+    schmetterlinge.setColorAt(i, farbe);
+  }
+  schmetterlinge.instanceColor.needsUpdate = true;
+
+  // Vögel: ferne V-Silhouetten, ziehen ruhige Kreise
+  const vogelGeo = verschmelze([
+    teil(new THREE.PlaneGeometry(1.4, 0.3), [0x46525e, 0x32414f], -0.65, 0.12, 0, 0, 0, 0.35),
+    teil(new THREE.PlaneGeometry(1.4, 0.3), [0x46525e, 0x32414f], 0.65, 0.12, 0, 0, 0, -0.35),
+  ]);
+  voegel = new THREE.InstancedMesh(vogelGeo, new THREE.MeshToonMaterial({ vertexColors: true, side: THREE.DoubleSide }), 9);
+  voegel.frustumCulled = false;
+  S.szene.add(voegel);
+  for (let i = 0; i < 9; i++) {
+    vogelDaten.push({
+      winkel: Math.random() * 6.28, radius: 50 + Math.random() * 90,
+      tempo: (0.04 + Math.random() * 0.05) * (Math.random() < 0.5 ? 1 : -1),
+      hoehe: 38 + Math.random() * 30, phase: Math.random() * 6.28,
+    });
+  }
+}
+
+const _fm = new THREE.Matrix4(), _fq = new THREE.Quaternion(), _fe = new THREE.Euler(), _fv = new THREE.Vector3(), _fs = new THREE.Vector3();
+function updateLufttiere(dt) {
+  const p = spielerPos();
+  // Schmetterlinge flattern in Wald, Steppe & Küste
+  const zone = S.zoneIndex ?? 0;
+  schmetterlinge.visible = zone === 0 || zone === 1 || zone === 2;
+  if (schmetterlinge.visible) {
+    for (let i = 0; i < falterDaten.length; i++) {
+      const f = falterDaten[i];
+      f.winkel += dt * f.tempo;
+      f.phase += dt * 18;
+      const x = p.x + Math.cos(f.winkel) * f.radius + Math.sin(f.phase * 0.1) * 2;
+      const z = p.z + Math.sin(f.winkel) * f.radius;
+      const y = hoeheAn(x, z) + f.hoehe + Math.sin(f.phase * 0.35) * 0.4;
+      const flatter = 0.45 + Math.abs(Math.sin(f.phase)) * 0.65;
+      _fe.set(0, -f.winkel, 0);
+      _fq.setFromEuler(_fe);
+      _fv.set(x, y, z);
+      _fs.set(flatter, 1, 1);
+      _fm.compose(_fv, _fq, _fs);
+      schmetterlinge.setMatrixAt(i, _fm);
+    }
+    schmetterlinge.instanceMatrix.needsUpdate = true;
+  }
+  // Vögel kreisen über allen Zonen
+  for (let i = 0; i < vogelDaten.length; i++) {
+    const v = vogelDaten[i];
+    v.winkel += dt * v.tempo;
+    v.phase += dt * 7;
+    const x = p.x + Math.cos(v.winkel) * v.radius;
+    const z = p.z + Math.sin(v.winkel) * v.radius;
+    const y = v.hoehe + Math.sin(v.phase * 0.23) * 3;
+    _fe.set(0, -v.winkel + (v.tempo > 0 ? 0 : Math.PI), 0);
+    _fq.setFromEuler(_fe);
+    _fv.set(x, y, z);
+    const flap = 1 + Math.sin(v.phase) * 0.25;
+    _fs.set(1, flap, 1);
+    _fm.compose(_fv, _fq, _fs);
+    voegel.setMatrixAt(i, _fm);
+  }
+  voegel.instanceMatrix.needsUpdate = true;
 }
 
 function spielerPos() { return S.rig.position; }
@@ -153,4 +237,6 @@ export function updateEffekte(dt) {
     if (funken.daten[i * 4] > 1.4) neuerFunke(i);
   }
   funken.punkte.geometry.attributes.position.needsUpdate = true;
+
+  updateLufttiere(dt);
 }
