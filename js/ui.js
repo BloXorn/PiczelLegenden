@@ -25,7 +25,7 @@ export function textSprite(text, opt = {}) {
   ctx2.fillStyle = opt.farbe ?? '#ffffff';
   ctx2.fillText(text, c.width / 2, c.height / 2);
   const tex = new THREE.CanvasTexture(c);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: !opt.immerVorn, transparent: true }));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: !opt.immerVorn, transparent: true, toneMapped: false }));
   const faktor = (opt.skala ?? 1) * 0.012;
   sprite.scale.set(c.width * faktor, c.height * faktor, 1);
   return sprite;
@@ -88,7 +88,7 @@ export function initUI() {
   hudTex = new THREE.CanvasTexture(hudCanvas);
   hudMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(1.45, 0.65),
-    new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false })
+    new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false, toneMapped: false })
   );
   hudMesh.position.set(0, -0.42, -1.45);
   hudMesh.rotation.x = -0.25;
@@ -242,7 +242,7 @@ function sorgeFuerTafel() {
   tafelTex = new THREE.CanvasTexture(tafelCanvas);
   tafel = new THREE.Mesh(
     new THREE.PlaneGeometry(1.7, 1.26),
-    new THREE.MeshBasicMaterial({ map: tafelTex, transparent: true, depthTest: false })
+    new THREE.MeshBasicMaterial({ map: tafelTex, transparent: true, depthTest: false, toneMapped: false })
   );
   tafel.renderOrder = 28;
   tafel.visible = false;

@@ -26,8 +26,15 @@ function gegnerXp(def) {
 }
 
 // ---------------------------------------------------------------- Figuren bauen (Comic, verschmolzen + Umriss)
+// Farbverlauf hell→dunkel = weiches eingebackenes Licht (Walkabout-Look)
+const _ch = new THREE.Color(), _cw = new THREE.Color(0xffffff);
+function grad(farbe, anteilHell = 0.22, anteilDunkel = 0.6) {
+  const hell = _ch.setHex(farbe).lerp(_cw, anteilHell).getHex();
+  const dunkel = _ch.setHex(farbe).multiplyScalar(anteilDunkel).getHex();
+  return [hell, dunkel];
+}
 function figurGeo(def) {
-  const f = def.farbe, f2 = def.farbe2, t = [];
+  const f = grad(def.farbe), f2 = grad(def.farbe2), t = [];
   const auge = (x, y, z) => {
     t.push(teil(GEO.kugel, 0xffffff, x, y, z, 0, 0, 0, 0.22));
     t.push(teil(GEO.kugel, 0x1a1208, x, y, z + 0.08, 0, 0, 0, 0.11));
@@ -49,7 +56,7 @@ function figurGeo(def) {
     auge(-0.14, 2.06, 0.26); auge(0.14, 2.06, 0.26);
     t.push(teil(GEO.box, f, -0.52, 1.25, 0, 0, 0, 0.25, 0.22, 0.7, 0.22));
     t.push(teil(GEO.box, f, 0.52, 1.25, 0.15, -0.5, 0, -0.25, 0.22, 0.7, 0.22));
-    t.push(teil(GEO.box, 0x7a6a5a, 0.62, 1.45, 0.55, 1.2, 0, 0, 0.1, 0.9, 0.1)); // Waffe
+    t.push(teil(GEO.box, grad(0x7a6a5a), 0.62, 1.45, 0.55, 1.2, 0, 0, 0.1, 0.9, 0.1)); // Waffe
   } else if (def.form === 'spinne') {
     t.push(teil(GEO.kugel, f, 0, 0.7, -0.1, 0, 0, 0, 1.0, 0.8, 1.2));
     t.push(teil(GEO.kugel, f2, 0, 0.7, 0.6, 0, 0, 0, 0.55));
@@ -323,23 +330,24 @@ function updateGeschosse(dt) {
 // ---------------------------------------------------------------- NPCs
 function npcGeo(def) {
   const t = [];
-  const haut = 0xf0c8a0;
-  t.push(teil(GEO.box, 0x5a4632, -0.16, 0.4, 0, 0, 0, 0, 0.24, 0.8, 0.24));
-  t.push(teil(GEO.box, 0x5a4632, 0.16, 0.4, 0, 0, 0, 0, 0.24, 0.8, 0.24));
-  t.push(teil(GEO.kapsel, def.kleidung, 0, 1.2, 0, 0, 0, 0, 0.78, 0.66, 0.56));
+  const haut = grad(0xf0c8a0);
+  const kleid = grad(def.kleidung);
+  t.push(teil(GEO.box, grad(0x5a4632), -0.16, 0.4, 0, 0, 0, 0, 0.24, 0.8, 0.24));
+  t.push(teil(GEO.box, grad(0x5a4632), 0.16, 0.4, 0, 0, 0, 0, 0.24, 0.8, 0.24));
+  t.push(teil(GEO.kapsel, kleid, 0, 1.2, 0, 0, 0, 0, 0.78, 0.66, 0.56));
   t.push(teil(GEO.kugel, haut, 0, 2.02, 0, 0, 0, 0, 0.6));
   t.push(teil(GEO.kugel, 0xffffff, -0.13, 2.08, 0.24, 0, 0, 0, 0.2));
   t.push(teil(GEO.kugel, 0xffffff, 0.13, 2.08, 0.24, 0, 0, 0, 0.2));
   t.push(teil(GEO.kugel, 0x1a1208, -0.13, 2.08, 0.32, 0, 0, 0, 0.1));
   t.push(teil(GEO.kugel, 0x1a1208, 0.13, 2.08, 0.32, 0, 0, 0, 0.1));
-  t.push(teil(GEO.box, def.kleidung, -0.5, 1.25, 0, 0, 0, 0.3, 0.2, 0.65, 0.2));
-  t.push(teil(GEO.box, def.kleidung, 0.5, 1.25, 0, 0, 0, -0.3, 0.2, 0.65, 0.2));
-  if (def.hut === 'fell') t.push(teil(GEO.kugel, 0x8a6a4a, 0, 2.3, 0, 0, 0, 0, 0.62, 0.4, 0.62));
-  if (def.hut === 'bronze') t.push(teil(GEO.kugel, 0xc8862a, 0, 2.32, 0, 0, 0, 0, 0.58, 0.36, 0.58));
-  if (def.hut === 'lorbeer') t.push(teil(GEO.ring, 0x4a8a3a, 0, 2.25, 0, Math.PI / 2.2, 0, 0, 0.62, 0.62, 0.62));
-  if (def.hut === 'kapuze') t.push(teil(GEO.kegel, def.kleidung, 0, 2.42, 0, 0, 0, 0, 0.62, 0.7, 0.62));
-  if (def.hut === 'barett') { t.push(teil(GEO.kugel, 0x8a2a3a, 0, 2.34, 0, 0, 0, 0, 0.64, 0.3, 0.64)); t.push(teil(GEO.kugel, 0xffd24a, 0.3, 2.42, 0, 0, 0, 0, 0.12)); }
-  if (def.hut === 'helm') t.push(teil(GEO.kugel, 0x9a9a92, 0, 2.26, 0, 0, 0, 0, 0.64, 0.5, 0.64));
+  t.push(teil(GEO.box, kleid, -0.5, 1.25, 0, 0, 0, 0.3, 0.2, 0.65, 0.2));
+  t.push(teil(GEO.box, kleid, 0.5, 1.25, 0, 0, 0, -0.3, 0.2, 0.65, 0.2));
+  if (def.hut === 'fell') t.push(teil(GEO.kugel, grad(0x8a6a4a), 0, 2.3, 0, 0, 0, 0, 0.62, 0.4, 0.62));
+  if (def.hut === 'bronze') t.push(teil(GEO.kugel, grad(0xc8862a), 0, 2.32, 0, 0, 0, 0, 0.58, 0.36, 0.58));
+  if (def.hut === 'lorbeer') t.push(teil(GEO.ring, grad(0x4a8a3a), 0, 2.25, 0, Math.PI / 2.2, 0, 0, 0.62, 0.62, 0.62));
+  if (def.hut === 'kapuze') t.push(teil(GEO.kegel, kleid, 0, 2.42, 0, 0, 0, 0, 0.62, 0.7, 0.62));
+  if (def.hut === 'barett') { t.push(teil(GEO.kugel, grad(0x8a2a3a), 0, 2.34, 0, 0, 0, 0, 0.64, 0.3, 0.64)); t.push(teil(GEO.kugel, 0xffd24a, 0.3, 2.42, 0, 0, 0, 0, 0.12)); }
+  if (def.hut === 'helm') t.push(teil(GEO.kugel, grad(0x9a9a92), 0, 2.26, 0, 0, 0, 0, 0.64, 0.5, 0.64));
   return t;
 }
 
@@ -379,6 +387,8 @@ export function heuereGefaehrtenAn(typId) {
   schild.position.y = 2.9;
   halter.add(schild);
   halter.position.copy(sp.kaempfer.pos);
+  halter.position.x += typ.rolle === 'tank' ? 2.2 : -2.2;
+  halter.position.z += 1.5;
   S.szene.add(halter);
   const maxHp = Math.round(sp.maxLeben * (typ.rolle === 'tank' ? 1.5 : 0.9));
   const gf = {
@@ -437,7 +447,13 @@ function updateGefaehrten(dt) {
     const gf = S.gefaehrten[i];
     if (gf.istTier && S.zeit > gf.endeZeit) { S.szene.remove(gf.mesh); S.gefaehrten.splice(i, 1); continue; }
     if (!gf.lebt()) {
-      if (!gf.istTier && S.zeit > gf.totBis) { gf.hp = gf.maxHp; gf.mesh.visible = true; gf.pos.copy(sp.kaempfer.pos); meldung(`${gf.typ.name} ist wieder da!`); }
+      if (!gf.istTier && S.zeit > gf.totBis) {
+        gf.hp = gf.maxHp; gf.mesh.visible = true;
+        gf.pos.copy(sp.kaempfer.pos);
+        gf.pos.x += gf.typ.rolle === 'tank' ? 2.2 : -2.2;
+        gf.pos.z += 1.5;
+        meldung(`${gf.typ.name} ist wieder da!`);
+      }
       continue;
     }
     gf.animZeit += dt;
@@ -457,14 +473,24 @@ function updateGefaehrten(dt) {
     const zielPos = ziel && !heiler ? ziel.pos : sp.kaempfer.pos;
     const wunschAbstand = ziel && !heiler ? 1.8 * (ziel.def?.groesse ?? 1) + 0.6 : 2.6;
     const d = gf.pos.distanceTo(zielPos);
-    if (d > wunschAbstand) {
+    if (d > 64) {
+      gf.pos.copy(sp.kaempfer.pos); // nachteleportieren …
+      gf.pos.x += gf.typ.rolle === 'tank' ? 2.2 : -2.2;
+      gf.pos.z += 1.5;
+    } else if (d > wunschAbstand) {
       const richtung = zielPos.clone().sub(gf.pos).normalize();
       gf.pos.addScaledVector(richtung, Math.min(d - wunschAbstand, dt * 5.2));
       kollidiere(gf.pos, 0.4);
       gf.pos.y = hoeheAn(gf.pos.x, gf.pos.z);
       gf.mesh.rotation.y = Math.atan2(richtung.x, richtung.z);
-    } else if (d > 64) {
-      gf.pos.copy(sp.kaempfer.pos); // nachteleportieren
+    } else if (d < 1.1) {
+      // niemals IM Spieler stehen — sanft zur Seite treten
+      const weg = gf.pos.clone().sub(zielPos);
+      weg.y = 0;
+      if (weg.lengthSq() < 0.001) weg.set(gf.typ.rolle === 'tank' ? 1 : -1, 0, 0.5);
+      weg.normalize();
+      gf.pos.addScaledVector(weg, dt * 3);
+      gf.pos.y = hoeheAn(gf.pos.x, gf.pos.z);
     }
     if (ziel && !heiler && d <= wunschAbstand + 0.5 && gf.cd <= 0) {
       schadeGegner(ziel, gf.angriff * (0.85 + Math.random() * 0.3), { quelle: gf, bedrohungsFaktor: gf.typ.rolle === 'tank' ? 4 : 1 });

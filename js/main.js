@@ -10,6 +10,7 @@ import { initUI, updateUI, oeffneMenue, schliesseTafel, oeffneDialog, tafelKlick
 import { updateQuests, questsFuerNpc, nimmAn, gebeAb, questStand } from './quests.js';
 import { heuereGefaehrtenAn } from './wesen.js';
 import { speichere, lade, loesche, wendeQuestStandAn, updateSpeicher } from './speicher.js';
+import { initEffekte, updateEffekte } from './effekte.js';
 import { weckeAudio, piczelKlang } from './klang.js';
 import { blobSchatten } from './bau.js';
 
@@ -63,12 +64,14 @@ function starteSpiel(klasseId, gespeichert) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.xr.enabled = true;
   renderer.xr.setFoveation(1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;   // satter, filmischer Look
+  renderer.toneMappingExposure = 1.15;
   document.body.appendChild(renderer.domElement);
   document.body.appendChild(VRButton.createButton(renderer));
   S.renderer = renderer;
 
   S.szene = new THREE.Scene();
-  S.szene.fog = new THREE.Fog(0xbfe6ff, 60, 220);
+  S.szene.fog = new THREE.Fog(0xbfe6ff, 80, 280);
 
   S.kamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 800);
   S.rig = new THREE.Group();
@@ -78,6 +81,7 @@ function starteSpiel(klasseId, gespeichert) {
   S.rig.add(blobSchatten(0.5));
 
   erschaffeWelt();
+  initEffekte();
   initUI();
   erschaffeBevoelkerung();
 
@@ -310,6 +314,7 @@ function schleife() {
   updateSpieler(dt, eingabe);
   updateWesen(dt);
   updateWelt(dt);
+  updateEffekte(dt);
   updateQuests(dt);
   updateUI(dt);
   updateSpeicher(dt);
