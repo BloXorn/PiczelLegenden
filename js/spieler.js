@@ -377,14 +377,15 @@ function baueWaffen(sp) {
     waffeRechts.rotation.x = -0.6;
     waffeRechts.position.set(0, -0.02, -0.05);
   } else {
-    waffeRechts.position.set(0.32, -0.32, -0.6);
+    waffeRechts.position.set(0.36, -0.34, -0.62);
     waffeRechts.rotation.set(0.3, -0.2, 0);
+    waffeRechts.scale.setScalar(0.55);
   }
   elternR.add(waffeRechts);
   if (sp.klasseId === 'schurke') {
     waffeLinks = comicMesh(waffenGeo('dolch', sp), 0.012);
     if (S.modus === 'vr') { waffeLinks.rotation.x = -0.6; waffeLinks.position.set(0, -0.02, -0.05); }
-    else { waffeLinks.position.set(-0.32, -0.32, -0.6); waffeLinks.rotation.set(0.3, 0.2, 0); }
+    else { waffeLinks.position.set(-0.36, -0.34, -0.62); waffeLinks.rotation.set(0.3, 0.2, 0); waffeLinks.scale.setScalar(0.55); }
     elternL.add(waffeLinks);
   } else {
     waffeLinks = null;

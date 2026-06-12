@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { S, WELT, rngFabrik, klemme, lerp, glatt } from './zustand.js';
 import { ZONEN, ORTE, zonenMitte } from './daten.js';
-import { teil, verschmelze, toonVertex, GEO, umriss, fbm, blobTextur } from './bau.js';
+import { teil, verschmelze, toonVertex, GEO, umriss, fbm, blobTextur, bodenTexturen, gradientKarte } from './bau.js';
 
 const kollisionsKreise = [];
 let wasserMesh = null;
@@ -167,6 +167,44 @@ export function erschaffeWelt() {
   bauOrte(szene);
 }
 
+// Gelände-Material: Vertex-Farben + Detail-Texturen (Pflaster, Sand, Fels, Schnee, Gras-Erde)
+function bodenMaterial() {
+  const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientKarte() });
+  const tex = bodenTexturen();
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.grasErdeMap = { value: tex.grasErde };
+    shader.uniforms.pflasterMap = { value: tex.pflaster };
+    shader.uniforms.sandMap = { value: tex.sand };
+    shader.uniforms.felsMap = { value: tex.fels };
+    shader.uniforms.schneeMap = { value: tex.schnee };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute vec4 misch;
+        varying vec4 vMisch;
+        varying vec2 vBodenUv;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vMisch = misch;
+        vBodenUv = position.xz;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D grasErdeMap, pflasterMap, sandMap, felsMap, schneeMap;
+        varying vec4 vMisch;
+        varying vec2 vBodenUv;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          float rest = max(0.0, 1.0 - vMisch.x - vMisch.y - vMisch.z - vMisch.w);
+          vec3 detail =
+            texture2D(pflasterMap, vBodenUv * 0.42).rgb * vMisch.x +
+            texture2D(sandMap, vBodenUv * 0.55).rgb * vMisch.y +
+            texture2D(felsMap, vBodenUv * 0.16).rgb * vMisch.z +
+            texture2D(schneeMap, vBodenUv * 0.28).rgb * vMisch.w +
+            texture2D(grasErdeMap, vBodenUv * 0.21).rgb * rest;
+          diffuseColor.rgb *= detail * 1.08;
+        }`);
+  };
+  return mat;
+}
+
 // ---------------------------------------------------------------- Gelände (mit eingebackenem Licht)
 function bauGelaende(szene) {
   const SEGX = 360, SEGZ = 240;
@@ -186,11 +224,12 @@ function bauGelaende(szene) {
 
   // 2. Durchgang: Farben (Zonen-Mischung, Flecken, Hang-Fels, Schnee, Sand, AO, Wege, Plätze)
   const farben = new Float32Array(n * 3);
+  const mischArr = new Float32Array(n * 4); // x Pflaster, y Sand, z Fels, w Schnee
   const c = new THREE.Color(), c2 = new THREE.Color(), c3 = new THREE.Color();
   const sand = new THREE.Color(0xecdca8), sandTief = new THREE.Color(0xb8a87a),
     fels = new THREE.Color(0x8d8d82), schnee = new THREE.Color(0xf0f5f8),
     weg = new THREE.Color(0xcdb67e), platz = new THREE.Color(0xbeb4a0),
-    platzDunkel = new THREE.Color(0xa89e8a);
+    platzDunkel = new THREE.Color(0xb3a994);
   const PATCH = { wald: 0x83b850, kueste: 0xa3cc74, steppe: 0xdcc873, moor: 0x4d6a3c, berge: 0x90a07c, frost: 0xdde8f0 };
   const dx = WELT.breite / SEGX, dz = WELT.tiefe / SEGZ;
 
@@ -213,6 +252,14 @@ function bauGelaende(szene) {
 
     const zoneHier = zoneIndexAn(x, z);
 
+    // Frost-Anteil weich über die Zonen-Mischung (für die Schnee-Textur)
+    const w00 = (1 - tx) * (1 - tz), w10 = tx * (1 - tz), w01 = (1 - tx) * tz, w11 = tx * tz;
+    let frostW = 0;
+    if (ZONEN[zonenIndexVon(zx, zz)].biom === 'frost') frostW += w00;
+    if (ZONEN[zonenIndexVon(Math.min(zx + 1, 2), zz)].biom === 'frost') frostW += w10;
+    if (ZONEN[zonenIndexVon(zx, Math.min(zz + 1, 1))].biom === 'frost') frostW += w01;
+    if (ZONEN[zonenIndexVon(Math.min(zx + 1, 2), Math.min(zz + 1, 1))].biom === 'frost') frostW += w11;
+
     // Lebendige Farb-Variation + Wiesen-Flecken
     const variation = fbm(x * 0.045 + 9, z * 0.045, 2);
     c.multiplyScalar(0.92 + 0.16 * variation);
@@ -226,8 +273,11 @@ function bauGelaende(szene) {
     const hx = (hoehen[idx(ix + 1, iz)] - hoehen[idx(ix - 1, iz)]) / (2 * dx);
     const hz = (hoehen[idx(ix, iz + 1)] - hoehen[idx(ix, iz - 1)]) / (2 * dz);
     const steigung = Math.hypot(hx, hz);
-    if (steigung > 0.38) c.lerp(fels, klemme((steigung - 0.38) * 2.2, 0, 0.85));
-    if (h > 27) c.lerp(schnee, klemme((h - 27) / 7, 0, 1));
+    const felsW = klemme((steigung - 0.38) * 2.2, 0, 0.85);
+    if (felsW > 0) c.lerp(fels, felsW);
+    const schneeHoehenW = klemme((h - 27) / 7, 0, 1);
+    if (schneeHoehenW > 0) c.lerp(schnee, schneeHoehenW);
+    const sandW = klemme((WELT.wasser + 1.4 - h) / 0.9, 0, 1) * 0.9;
     if (h < WELT.wasser + 1.4) c.lerp(sand, 0.85);
     if (h < WELT.wasser - 0.6) c.lerp(sandTief, 0.6);
 
@@ -237,13 +287,15 @@ function bauGelaende(szene) {
     else c.multiplyScalar(1 + Math.min(0.06, lap * 0.04));
 
     // Wege mit unregelmäßigem Rand
+    let wegW = 0;
     for (const p of pfade) {
       const { d } = distZuSegment(x, z, p.ax, p.az, p.bx, p.bz);
       const rand = 5 + 1.6 * fbm(x * 0.12, z * 0.12, 2);
-      if (d < rand) { c.lerp(weg, 0.82); break; }
-      if (d < rand + 2) { c.lerp(weg, 0.4 * (1 - (d - rand) / 2)); break; }
+      if (d < rand) { c.lerp(weg, 0.82); wegW = 1; break; }
+      if (d < rand + 2) { const a = 1 - (d - rand) / 2; c.lerp(weg, 0.4 * a); wegW = a; break; }
     }
     // Stadt-Plätze: Pflaster-Muster
+    let platzW = 0;
     for (let zi = 0; zi < 6; zi++) {
       const m = zonenMitte(zi);
       const d = Math.hypot(x - m.x, z - m.z);
@@ -252,15 +304,29 @@ function bauGelaende(szene) {
         const muster = (Math.floor(d * 0.7) + Math.floor((winkel + Math.PI) * 2.2)) % 2;
         c.lerp(muster ? platz : platzDunkel, 0.75);
         if (d > 27.6) c.lerp(platzDunkel, 0.5); // Rand-Ring
+        platzW = klemme((30 - d) / 2.5, 0, 1);
         break;
       }
     }
 
+    // Textur-Mischung: Pflaster gewinnt, dann Sand, dann Schnee, dann Fels
+    let mPflaster = Math.max(wegW, platzW);
+    let mSand = sandW * (1 - mPflaster);
+    let mSchnee = Math.max(schneeHoehenW, frostW * 0.8) * (1 - mPflaster) * (1 - mSand);
+    let mFels = felsW * (1 - mPflaster) * (1 - mSand) * (1 - mSchnee * 0.5);
+    const summe = mPflaster + mSand + mSchnee + mFels;
+    if (summe > 1) { mPflaster /= summe; mSand /= summe; mSchnee /= summe; mFels /= summe; }
+    mischArr[i * 4] = mPflaster;
+    mischArr[i * 4 + 1] = mSand;
+    mischArr[i * 4 + 2] = mFels;
+    mischArr[i * 4 + 3] = mSchnee;
+
     farben[i * 3] = c.r; farben[i * 3 + 1] = c.g; farben[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(farben, 3));
+  geo.setAttribute('misch', new THREE.BufferAttribute(mischArr, 4));
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, toonVertex());
+  const mesh = new THREE.Mesh(geo, bodenMaterial());
   mesh.name = 'gelaende';
   szene.add(mesh);
 }

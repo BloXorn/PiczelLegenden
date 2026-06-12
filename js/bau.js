@@ -131,6 +131,153 @@ export function blobSchatten(radius = 0.6) {
   return m;
 }
 
+// ---------------------------------------------------------------- Boden-Detail-Texturen (prozedural, kachelbar)
+import { rngFabrik } from './zustand.js';
+
+function kachelTextur(groesse, malen) {
+  const c = document.createElement('canvas');
+  c.width = c.height = groesse;
+  malen(c.getContext('2d'), groesse);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+// zeichnet eine Form 9-fach versetzt, damit die Kachel nahtlos wird
+function mitWrap(g, x, y, zeichne) {
+  for (const dx of [-g, 0, g]) for (const dy of [-g, 0, g]) zeichne(x + dx, y + dy);
+}
+
+let _texturen = null;
+export function bodenTexturen() {
+  if (_texturen) return _texturen;
+  const G = 256;
+
+  const grasErde = kachelTextur(G, (ctx, g) => {
+    const rng = rngFabrik(101);
+    ctx.fillStyle = 'rgb(231,229,221)';
+    ctx.fillRect(0, 0, g, g);
+    for (let i = 0; i < 26; i++) { // Erde blitzt durch
+      const x = rng() * g, y = rng() * g, r = 8 + rng() * 22, r2 = r * (0.5 + rng() * 0.5);
+      ctx.fillStyle = `rgba(${170 + rng() * 25 | 0},${140 + rng() * 20 | 0},${105 + rng() * 20 | 0},${0.25 + rng() * 0.28})`;
+      mitWrap(g, x, y, (px, py) => { ctx.beginPath(); ctx.ellipse(px, py, r, r2, rng() * 3, 0, 7); ctx.fill(); });
+    }
+    for (let i = 0; i < 14; i++) { // dunklere Moos-Flecken
+      const x = rng() * g, y = rng() * g, r = 10 + rng() * 18;
+      ctx.fillStyle = `rgba(150,162,128,${0.25 + rng() * 0.25})`;
+      mitWrap(g, x, y, (px, py) => { ctx.beginPath(); ctx.ellipse(px, py, r, r * 0.7, rng() * 3, 0, 7); ctx.fill(); });
+    }
+    for (let i = 0; i < 170; i++) { // Körnchen & Lichtpunkte
+      const x = rng() * g, y = rng() * g, s = 1 + rng() * 1.6;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(120,100,78,0.5)' : 'rgba(255,255,244,0.65)';
+      ctx.fillRect(x, y, s, s);
+    }
+  });
+
+  const pflaster = kachelTextur(G, (ctx, g) => {
+    const rng = rngFabrik(202);
+    ctx.fillStyle = 'rgb(96,90,82)';
+    ctx.fillRect(0, 0, g, g);
+    const zelle = g / 4;
+    for (let rx = -1; rx <= 4; rx++) {
+      for (let ry = -1; ry <= 4; ry++) {
+        const x = rx * zelle + zelle / 2 + (rng() - 0.5) * 9 + (ry % 2 ? zelle / 2 : 0);
+        const y = ry * zelle + zelle / 2 + (rng() - 0.5) * 9;
+        const b = zelle * (0.78 + rng() * 0.14), h = zelle * (0.74 + rng() * 0.14);
+        const ton = 196 + rng() * 42;
+        ctx.fillStyle = `rgb(${ton | 0},${ton - 6 | 0},${ton - 14 | 0})`;
+        ctx.beginPath();
+        ctx.roundRect(x - b / 2, y - h / 2, b, h, 14);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,250,0.30)'; // Licht oben links
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(x - b / 2 + 2, y - h / 2 + 2, b - 4, h - 4, 12);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(40,34,28,0.35)';   // Schatten unten
+        ctx.beginPath();
+        ctx.roundRect(x - b / 2 + 1, y - h / 2 + 3, b - 2, h - 3, 13);
+        ctx.stroke();
+      }
+    }
+  });
+
+  const sand = kachelTextur(G, (ctx, g) => {
+    const rng = rngFabrik(303);
+    ctx.fillStyle = 'rgb(238,231,212)';
+    ctx.fillRect(0, 0, g, g);
+    for (let i = 0; i < 9; i++) { // sanfte Wellen-Rippel
+      const y = rng() * g;
+      ctx.strokeStyle = `rgba(205,188,156,${0.25 + rng() * 0.2})`;
+      ctx.lineWidth = 3 + rng() * 3;
+      mitWrap(g, 0, y, (px, py) => {
+        ctx.beginPath();
+        ctx.moveTo(-10, py);
+        for (let x = 0; x <= g + 10; x += 16) ctx.lineTo(x, py + Math.sin(x * 0.08 + i) * 4);
+        ctx.stroke();
+      });
+    }
+    for (let i = 0; i < 420; i++) { // Sandkörner
+      const x = rng() * g, y = rng() * g, s = 0.8 + rng() * 1.4;
+      const w = rng();
+      ctx.fillStyle = w < 0.4 ? 'rgba(198,178,142,0.7)' : w < 0.75 ? 'rgba(255,252,240,0.8)' : 'rgba(170,148,116,0.55)';
+      ctx.fillRect(x, y, s, s);
+    }
+    for (let i = 0; i < 9; i++) { // Kieselchen
+      const x = rng() * g, y = rng() * g, r = 2.5 + rng() * 3;
+      ctx.fillStyle = `rgba(${185 + rng() * 30 | 0},${175 + rng() * 25 | 0},${155 + rng() * 20 | 0},0.9)`;
+      mitWrap(g, x, y, (px, py) => { ctx.beginPath(); ctx.ellipse(px, py, r, r * 0.75, rng() * 3, 0, 7); ctx.fill(); });
+    }
+  });
+
+  const fels = kachelTextur(G, (ctx, g) => {
+    const rng = rngFabrik(404);
+    ctx.fillStyle = 'rgb(221,221,218)';
+    ctx.fillRect(0, 0, g, g);
+    for (let i = 0; i < 20; i++) { // hellere/dunklere Gesteins-Flecken
+      const x = rng() * g, y = rng() * g, r = 14 + rng() * 30;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(200,202,199,0.5)' : 'rgba(238,238,235,0.5)';
+      mitWrap(g, x, y, (px, py) => { ctx.beginPath(); ctx.ellipse(px, py, r, r * 0.7, rng() * 3, 0, 7); ctx.fill(); });
+    }
+    ctx.lineWidth = 2.4;
+    for (let i = 0; i < 11; i++) { // Risse
+      let x = rng() * g, y = rng() * g;
+      ctx.strokeStyle = `rgba(146,146,142,${0.4 + rng() * 0.25})`;
+      mitWrap(g, 0, 0, (ox, oy) => {
+        ctx.beginPath();
+        ctx.moveTo(x + ox, y + oy);
+        let px = x, py = y;
+        for (let s = 0; s < 5; s++) {
+          px += (rng() - 0.5) * 46;
+          py += 14 + rng() * 22;
+          ctx.lineTo(px + ox, py + oy);
+        }
+        ctx.stroke();
+      });
+    }
+  });
+
+  const schnee = kachelTextur(G, (ctx, g) => {
+    const rng = rngFabrik(505);
+    ctx.fillStyle = 'rgb(250,251,253)';
+    ctx.fillRect(0, 0, g, g);
+    for (let i = 0; i < 14; i++) { // bläuliche Mulden
+      const x = rng() * g, y = rng() * g, r = 16 + rng() * 30;
+      ctx.fillStyle = `rgba(222,232,245,${0.35 + rng() * 0.3})`;
+      mitWrap(g, x, y, (px, py) => { ctx.beginPath(); ctx.ellipse(px, py, r, r * 0.65, rng() * 3, 0, 7); ctx.fill(); });
+    }
+    for (let i = 0; i < 110; i++) { // Glitzer
+      const x = rng() * g, y = rng() * g;
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillRect(x, y, 1 + rng(), 1 + rng());
+    }
+  });
+
+  _texturen = { grasErde, pflaster, sand, fels, schnee };
+  return _texturen;
+}
+
 // Weiche Punkt-Textur für Partikel (Schnee, Pollen, Rauch …)
 let _punktTex = null;
 export function punktTextur() {
